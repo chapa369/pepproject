@@ -13,11 +13,15 @@ def main(data: str):
     if re.search(r'秋葉原', data):
         if re.search(r'ワークショップ', data):
             result.append(re.search(r'ワークショップ\S*', data).group())
+            result = ' '.join(result)
+            result += 'のご予約ですね。テレビの前のテーブルのお好きなお席におかけください。こちらにいらっしゃるのは初めてですか。'
+
+
         elif re.search(r'タッチ.?トライ', data):
             result.append(re.search(r'タッチ.?トライ', data).group())
+            result = ' '.join(result)
+            result += 'のご予約ですね。スタッフがペッパーをご用意いたしますので、向かって奥のテーブルか右側のテーブルのお好きなお席にかけてお待ちください。'
 
-    result = ' '.join(result)
-    result += 'です'
     sys.stdout.write(result)
 
 

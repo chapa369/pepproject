@@ -10,17 +10,41 @@ import subprocess
 import multiprocessing
 import os
 
+class EngagementZoneModule(ALModule):
 
-class QRCodeReaderModule(ALModule):
-
-    def __init__(self, name):
+    def __init__(self, name, memory):
         ALModule.__init__(self, name)
 
         self.tts = ALProxy('ALTextToSpeech')
+        self.atts = ALProxy("ALAnimatedSpeech")
+        self.memory = memory
 
-        global memory
-        memory = ALProxy('ALMemory')
-        memory.subscribeToEvent('BarcodeReader/BarcodeDetected', 'QRCodeReader', 'onQRCodeDetected')
+        print(self.memory.subscribeToEvent('EngagementZones/PersonEnteredZone2', 'engage', 'onPersonDetected'))
+        print('EngagementZoneModule is ready.')
+
+    def onPersonDetected(self, *args):
+        print('A Person is detected.')
+        self.memory.unsubscribeToEvent('EngagementZones/PersonEnteredZone2', 'engage')
+
+        configuration = {"bodyLanguageMode":"random"}
+        self.atts.setBodyLanguageEnabled(True)
+        self.atts.say("アトリエ秋葉原にようこそ、僕に予約のQRコードを見せてくださーい",configuration)
+        time.sleep(2)
+        self.memory.subscribeToEvent('EngagementZones/PersonEnteredZone2', 'engage', 'onPersonDetected')
+
+
+
+class QRCodeReaderModule(ALModule):
+
+    def __init__(self, name, memory):
+        ALModule.__init__(self, name)
+        self.tts = ALProxy('ALTextToSpeech')
+
+        #global memory
+        #memory = ALProxy('ALMemory')
+        self.memory = memory
+
+        self.memory.subscribeToEvent('BarcodeReader/BarcodeDetected', 'QRCodeReader', 'onQRCodeDetected')
         time.sleep(5)
         print('QRCodeReaderModule is ready.')
 
@@ -36,13 +60,17 @@ class QRCodeReaderModule(ALModule):
 
     def onQRCodeDetected(self, *args):
         print('A QR code is detected.')
-        memory.unsubscribeToEvent('BarcodeReader/BarcodeDetected', 'QRCodeReader')
-        data = memory.getData('BarcodeReader/BarcodeDetected')
+        self.memory.unsubscribeToEvent('BarcodeReader/BarcodeDetected', 'QRCodeReader')
+        data = self.memory.getData('BarcodeReader/BarcodeDetected')
+        print(data[0][0])
         url = data[0][0] # get the url from the data.
         data = self.crawl_doorkeeper(url)
         self.guide_guest(data)
         time.sleep(5)
-        memory.subscribeToEvent('BarcodeReader/BarcodeDetected', 'QRCodeReader', 'onQRCodeDetected')
+        self.memory.subscribeToEvent('BarcodeReader/BarcodeDetected', 'QRCodeReader', 'onQRCodeDetected')
+
+    def __getattr__(self, arg):
+        print('arg: ', arg)
 
 
 class TakeAndShowPics:
@@ -81,14 +109,19 @@ def main():
 
     myBroker = ALBroker('myBroker', '0.0.0.0', 0, ip, port)
 
-    global QRCodeReader
-    QRCodeReader = QRCodeReaderModule('QRCodeReader')
+    global memory
+    memory = ALProxy('ALMemory')
 
-    # takeAndShowPics = TakeAndShowPics()
-    # p = multiprocessing.Process(target=takeAndShowPics.start)
-    # p.start()
+    global engage
+    engage = EngagementZoneModule('engage', memory)
+
+    global QRCodeReader
+    QRCodeReader = QRCodeReaderModule('QRCodeReader', memory)
+
+    print("picture start")
     takeAndShowPics = TakeAndShowPics(ip, port)
     takeAndShowPics.start()
+    print("picture comp")
 
     try:
         while True:
